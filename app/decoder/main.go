@@ -2,6 +2,8 @@ package main
 
 import (
 	"fmt"
+	"github.com/Warh40k/bookstack-coding/bookstack"
+	bwcoder "github.com/Warh40k/bw-coder/coder"
 	"io"
 	"io/fs"
 	"math"
@@ -111,7 +113,8 @@ func processFile(path string, wg *sync.WaitGroup) {
 			break
 		}
 		seq := bwcoder.Decode(chunk, slen, n)
-		output.Write(seq)
+		detrans := bookstack.Decode(seq)
+		output.Write(detrans)
 	}
 
 }
