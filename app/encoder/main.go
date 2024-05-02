@@ -8,6 +8,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 )
 
 var isDir bool
@@ -59,25 +60,34 @@ func main() {
 		}
 	}
 
+	wg := sync.WaitGroup{}
 	for i := 0; i < len(inFiles); i++ {
+		wg.Add(1)
+		go processFile(inFiles[i], &wg)
+	}
+	wg.Wait()
+}
 
-		inputSeq := internal.GetSequence(inFiles[i])
-		if err != nil {
-			fmt.Printf("error opening input file: %s\n", err)
-			os.Exit(1)
-		}
+func processFile(path string, wg *sync.WaitGroup) {
+	defer wg.Done()
 
-		encodedSeq := bookstack.Encode(inputSeq)
+	inputBuf, err := internal.GetSequence(path)
 
-		var outPath = os.Args[2]
-		if isDir {
-			outPath = filepath.Join(os.Args[2], strings.Split(inFiles[i], os.Args[1])[1])
-		}
+	if err != nil {
+		fmt.Printf("error opening input file: %s\n", err)
+		os.Exit(1)
+	}
 
-		err = bookstack.SaveSequence(outPath, encodedSeq)
-		if err != nil {
-			fmt.Printf("error creating output file: %s\n", err)
-			os.Exit(1)
-		}
+	encodedSeq := bookstack.Encode(inputBuf.Bytes())
+
+	var outPath = os.Args[2]
+	if isDir {
+		outPath = filepath.Join(os.Args[2], strings.Split(path, os.Args[1])[1])
+	}
+
+	err = bookstack.SaveSequence(outPath, encodedSeq)
+	if err != nil {
+		fmt.Printf("error creating output file: %s\n", err)
+		os.Exit(1)
 	}
 }

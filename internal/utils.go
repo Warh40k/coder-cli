@@ -3,16 +3,16 @@ package internal
 import (
 	"bytes"
 	"fmt"
-	bwcoder "github.com/Warh40k/bw-coder/coder"
+	"github.com/Warh40k/bw-coder/bwcoder"
 	"io"
 	"math"
 	"os"
 	"strings"
 )
 
-const CHUNK_SIZE = 256
+const CHUNK_SIZE = 4096
 
-func GetSequence(inputPath string) []byte {
+func GetSequence(inputPath string) (bytes.Buffer, error) {
 
 	var chunk = make([]byte, CHUNK_SIZE) // чанк (в байтах)
 	var result bytes.Buffer
@@ -20,9 +20,9 @@ func GetSequence(inputPath string) []byte {
 
 	input, err := os.Open(inputPath)
 	if err != nil {
-		fmt.Printf("error opening input file: %s\n", err)
-		os.Exit(1)
+		return result, err
 	}
+
 	defer input.Close()
 
 	for {
@@ -35,10 +35,10 @@ func GetSequence(inputPath string) []byte {
 		n = bwcoder.Encode(chunk, lcol, slen)
 		bnum := getBin(n, bitCount)
 		result.WriteString(bnum)
-		result.Write(chunk)
+		result.Write(lcol)
 	}
 
-	return result.Bytes()
+	return result, nil
 }
 
 func getBin(num, bitCount int) string {

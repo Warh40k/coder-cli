@@ -1,9 +1,10 @@
 package main
 
 import (
+	"bytes"
 	"fmt"
 	"github.com/Warh40k/bookstack-coding/bookstack"
-	bwcoder "github.com/Warh40k/bw-coder/coder"
+	"github.com/Warh40k/bw-coder/bwcoder"
 	"io"
 	"io/fs"
 	"math"
@@ -100,21 +101,27 @@ func processFile(path string, wg *sync.WaitGroup) {
 	}
 	defer output.Close()
 
+	data, err := io.ReadAll(input)
+	if err != nil {
+		fmt.Printf("error reading input file: %s\n", err)
+		os.Exit(1)
+	}
+	var decoded = bytes.NewBuffer(bookstack.Decode(data))
+
 	var chunk = make([]byte, CHUNK_SIZE) // чанк (в байтах)
 	var bnum = make([]byte, bitSize)
 	var n, slen int
 
 	for {
-		_, err = input.Read(bnum)
+		_, err = decoded.Read(bnum)
 		n = getDec(bnum)
-		slen, err = input.Read(chunk)
+		slen, err = decoded.Read(chunk)
 
 		if err == io.EOF {
 			break
 		}
 		seq := bwcoder.Decode(chunk, slen, n)
-		detrans := bookstack.Decode(seq)
-		output.Write(detrans)
+		output.Write(seq)
 	}
 
 }
