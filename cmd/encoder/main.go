@@ -1,7 +1,6 @@
 package main
 
 import (
-	"bufio"
 	"fmt"
 	"github.com/Warh40k/bookstack-coding/bookstack"
 	"github.com/Warh40k/entropy"
@@ -12,9 +11,27 @@ import (
 	"path/filepath"
 	"strings"
 	"sync"
+	"text/tabwriter"
 )
 
 var isDir bool
+
+type tabWriter struct {
+	w *tabwriter.Writer
+	m sync.Mutex
+}
+
+func (tw *tabWriter) Write(p []byte) (n int, err error) {
+	tw.m.Lock()
+	defer tw.m.Unlock()
+	return tw.w.Write(p)
+}
+
+func (tw *tabWriter) Flush() {
+	tw.m.Lock()
+	defer tw.m.Unlock()
+	tw.w.Flush()
+}
 
 func main() {
 	if len(os.Args) < 3 {
@@ -63,20 +80,22 @@ func main() {
 		}
 	}
 
-	fmt.Println("File\tSize\tH(X)\tH(X|X)\tH(X|XX)\tl_avg")
 	wg := sync.WaitGroup{}
+	var out = &tabWriter{}
+	out.w = tabwriter.NewWriter(os.Stdout, 0, 0, 5, ' ', 0)
+	defer out.Flush()
+
+	fmt.Fprintf(out, "File\tSize\tH(X)\tH(X|X)\tH(X|XX)\tl_avg\tNewSize\n")
+
 	for i := 0; i < len(inFiles); i++ {
 		wg.Add(1)
-		go processFile(inFiles[i], &wg)
+		go processFile(inFiles[i], &wg, out)
 	}
 	wg.Wait()
 }
 
-func processFile(path string, wg *sync.WaitGroup) {
+func processFile(path string, wg *sync.WaitGroup, out *tabWriter) {
 	defer wg.Done()
-
-	out := bufio.NewWriter(os.Stdout)
-	defer out.Flush()
 
 	input, err := os.Open(path)
 	if err != nil {
@@ -99,13 +118,9 @@ func processFile(path string, wg *sync.WaitGroup) {
 		fmt.Fprintf(out, "error stat input file: %s\n", err)
 		os.Exit(1)
 	}
-	fmt.Fprint(out, dumpFileInfo(path, data, info.Size()))
 
 	translatedSeq := information_theory_lr1.TranslateSequence(input)
 	encodedSeq := bookstack.Encode(translatedSeq.Bytes())
-
-	fmt.Fprintf(out, "\t%f\n",
-		getAverageCodeLen(len(encodedSeq), len([]rune(string(data)))))
 
 	// save result
 	var outPath = os.Args[2]
@@ -113,14 +128,17 @@ func processFile(path string, wg *sync.WaitGroup) {
 		outPath = filepath.Join(os.Args[2], strings.Split(path, os.Args[1])[1])
 	}
 
-	err = bookstack.SaveSequence(outPath, encodedSeq)
+	encinfo, err := bookstack.SaveSequence(outPath, encodedSeq)
 	if err != nil {
 		fmt.Printf("error creating output file: %s\n", err)
 		os.Exit(1)
 	}
+	entropyInfo := dumpEntropyInfo(path, data, info.Size())
+	fmt.Fprintf(out, "%s\t%f\t%d\n", entropyInfo,
+		getAverageCodeLen(len(encodedSeq), len([]rune(string(data)))), encinfo.Size())
 }
 
-func dumpFileInfo(path string, data []byte, size int64) string {
+func dumpEntropyInfo(path string, data []byte, size int64) string {
 	freqs, probs := entropy.GetFreqsProbs(data)
 	entr := entropy.GetEntropy(probs)
 	condProbs, condFreqs := entropy.GetCondProbs(data, freqs)
