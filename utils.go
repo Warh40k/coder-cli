@@ -1,4 +1,4 @@
-package information_theory_lr1
+package coder_cli
 
 import (
 	"bytes"
@@ -10,7 +10,7 @@ import (
 	"strings"
 )
 
-const CHUNK_SIZE = 4096
+const CHUNK_SIZE = 8096
 
 func TranslateSequence(seq *os.File) *bytes.Buffer {
 	var chunk = make([]byte, CHUNK_SIZE) // чанк (в байтах)

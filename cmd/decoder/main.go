@@ -14,7 +14,6 @@ import (
 	"sync"
 )
 
-// TODO: запускать в горутинах
 var (
 	isDir   bool
 	bitSize = int(math.Ceil(math.Log2(float64(CHUNK_SIZE))))

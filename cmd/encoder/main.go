@@ -3,8 +3,8 @@ package main
 import (
 	"fmt"
 	"github.com/Warh40k/bookstack-coding/bookstack"
+	"github.com/Warh40k/coder-cli"
 	"github.com/Warh40k/entropy"
-	"github.com/Warh40k/information_theory_lr1"
 	"io"
 	"io/fs"
 	"os"
@@ -119,7 +119,7 @@ func processFile(path string, wg *sync.WaitGroup, out *tabWriter) {
 		os.Exit(1)
 	}
 
-	translatedSeq := information_theory_lr1.TranslateSequence(input)
+	translatedSeq := coder_cli.TranslateSequence(input)
 	encodedSeq := bookstack.Encode(translatedSeq.Bytes())
 
 	// save result
