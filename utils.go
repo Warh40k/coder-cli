@@ -1,4 +1,4 @@
-package internal
+package information_theory_lr1
 
 import (
 	"bytes"
@@ -12,33 +12,25 @@ import (
 
 const CHUNK_SIZE = 4096
 
-func GetSequence(inputPath string) (bytes.Buffer, error) {
-
+func TranslateSequence(seq *os.File) *bytes.Buffer {
 	var chunk = make([]byte, CHUNK_SIZE) // чанк (в байтах)
-	var result bytes.Buffer
+	var translated bytes.Buffer
 	var bitCount = int(math.Ceil(math.Log2(float64(CHUNK_SIZE))))
-
-	input, err := os.Open(inputPath)
-	if err != nil {
-		return result, err
-	}
-
-	defer input.Close()
 
 	for {
 		var n, slen int
-		slen, err = input.Read(chunk)
+		slen, err := seq.Read(chunk)
 		if err == io.EOF {
 			break
 		}
 		var lcol = make([]byte, slen)
 		n = bwcoder.Encode(chunk, lcol, slen)
 		bnum := getBin(n, bitCount)
-		result.WriteString(bnum)
-		result.Write(lcol)
+		translated.WriteString(bnum)
+		translated.Write(lcol)
 	}
 
-	return result, nil
+	return &translated
 }
 
 func getBin(num, bitCount int) string {

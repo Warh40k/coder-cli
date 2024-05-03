@@ -1,9 +1,12 @@
 package main
 
 import (
+	"bufio"
 	"fmt"
 	"github.com/Warh40k/bookstack-coding/bookstack"
-	"github.com/Warh40k/information_theory_lr1/internal"
+	"github.com/Warh40k/entropy"
+	"github.com/Warh40k/information_theory_lr1"
+	"io"
 	"io/fs"
 	"os"
 	"path/filepath"
@@ -60,6 +63,7 @@ func main() {
 		}
 	}
 
+	fmt.Println("File\tSize\tH(X)\tH(X|X)\tH(X|XX)\tl_avg")
 	wg := sync.WaitGroup{}
 	for i := 0; i < len(inFiles); i++ {
 		wg.Add(1)
@@ -71,15 +75,39 @@ func main() {
 func processFile(path string, wg *sync.WaitGroup) {
 	defer wg.Done()
 
-	inputBuf, err := internal.GetSequence(path)
+	out := bufio.NewWriter(os.Stdout)
+	defer out.Flush()
 
+	input, err := os.Open(path)
 	if err != nil {
-		fmt.Printf("error opening input file: %s\n", err)
+		fmt.Fprintf(out, "error opening input file: %s\n", err)
+		os.Exit(1)
+	}
+	defer input.Close()
+
+	data, err := io.ReadAll(input)
+
+	input.Seek(0, io.SeekStart)
+	if err != nil {
+		fmt.Fprintf(out, "error reading input file: %s\n", err)
 		os.Exit(1)
 	}
 
-	encodedSeq := bookstack.Encode(inputBuf.Bytes())
+	// output initial file info
+	info, err := input.Stat()
+	if err != nil {
+		fmt.Fprintf(out, "error stat input file: %s\n", err)
+		os.Exit(1)
+	}
+	fmt.Fprint(out, dumpFileInfo(path, data, info.Size()))
 
+	translatedSeq := information_theory_lr1.TranslateSequence(input)
+	encodedSeq := bookstack.Encode(translatedSeq.Bytes())
+
+	fmt.Fprintf(out, "\t%f\n",
+		getAverageCodeLen(len(encodedSeq), len([]rune(string(data)))))
+
+	// save result
 	var outPath = os.Args[2]
 	if isDir {
 		outPath = filepath.Join(os.Args[2], strings.Split(path, os.Args[1])[1])
@@ -90,4 +118,19 @@ func processFile(path string, wg *sync.WaitGroup) {
 		fmt.Printf("error creating output file: %s\n", err)
 		os.Exit(1)
 	}
+}
+
+func dumpFileInfo(path string, data []byte, size int64) string {
+	freqs, probs := entropy.GetFreqsProbs(data)
+	entr := entropy.GetEntropy(probs)
+	condProbs, condFreqs := entropy.GetCondProbs(data, freqs)
+	condEntr := entropy.GetCondEntropy(probs, condProbs)
+	condProbsXX := entropy.GetCondProbsXX(data, condFreqs)
+	condEntrXX := entropy.GetCondEntropyXX(probs, condProbs, condProbsXX)
+	return fmt.Sprintf("%s\t%d\t%f\t%f\t%f",
+		path, size, entr, condEntr, condEntrXX)
+}
+
+func getAverageCodeLen(seqLen, symCount int) float64 {
+	return float64(seqLen) * 8 / float64(symCount)
 }
